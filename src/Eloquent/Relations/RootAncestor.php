@@ -7,12 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\Traits\IsAncestorRelation;
 
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends HasOne<TRelatedModel>
+ */
 class RootAncestor extends HasOne
 {
     use IsAncestorRelation {
         __construct as baseConstruct;
         addConstraints as baseAddConstraints;
     }
+
     /**
      * Create a new root ancestor relationship instance.
      *

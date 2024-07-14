@@ -6,10 +6,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Query\Expression;
+use Staudenmeir\EloquentHasManyDeepContracts\Interfaces\ConcatenableRelation;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\Graph\Traits\Concatenation\IsConcatenableDescendantsRelation;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\Graph\Traits\IsRecursiveRelation;
 
-class Descendants extends BelongsToMany
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends BelongsToMany<TRelatedModel>
+ */
+class Descendants extends BelongsToMany implements ConcatenableRelation
 {
+    use IsConcatenableDescendantsRelation;
     use IsRecursiveRelation {
         buildDictionary as baseBuildDictionary;
     }
@@ -162,8 +169,8 @@ class Descendants extends BelongsToMany
      */
     protected function addExpression(
         callable $constraint,
-        Builder $query = null,
-        string $from = null,
+        ?Builder $query = null,
+        ?string $from = null,
         string $union = 'unionAll'
     ): Builder {
         $query = $query ?: $this->query;

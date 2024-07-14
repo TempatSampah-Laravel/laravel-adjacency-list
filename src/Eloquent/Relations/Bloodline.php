@@ -5,6 +5,10 @@ namespace Staudenmeir\LaravelAdjacencyList\Eloquent\Relations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends Descendants<TRelatedModel>
+ */
 class Bloodline extends Descendants
 {
     /**
@@ -29,7 +33,7 @@ class Bloodline extends Descendants
      * @param string|null $from
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function addExpression(callable $constraint, Builder $query = null, $from = null)
+    protected function addExpression(callable $constraint, ?Builder $query = null, $from = null)
     {
         $query = $query ?: $this->query;
 

@@ -12,15 +12,25 @@ use Illuminate\Database\Eloquent\Collection as Base;
  */
 class Collection extends Base
 {
+    /**
+     * Generate a nested tree.
+     *
+     * @param string $childrenRelation
+     * @return static<int, TModel>
+     */
     public function toTree($childrenRelation = 'children')
     {
         if ($this->isEmpty()) {
             return $this;
         }
 
-        $parentKeyName = $this->first()->getParentKeyName();
-        $localKeyName = $this->first()->getLocalKeyName();
-        $depthName = $this->first()->getDepthName();
+        $model = $this->first();
+
+        $parentKeyName = $model->getParentKeyName();
+
+        $localKeyName = $model->getLocalKeyName();
+
+        $depthName = $model->getDepthName();
 
         $depths = $this->pluck($depthName);
 
@@ -31,7 +41,10 @@ class Collection extends Base
         $itemsByParentKey = $this->groupBy($parentKeyName);
 
         foreach ($this->items as $item) {
-            $item->setRelation($childrenRelation, $itemsByParentKey[$item->$localKeyName] ?? new static());
+            $item->setRelation(
+                $childrenRelation,
+                $itemsByParentKey[$item->$localKeyName] ?? new static()
+            );
         }
 
         return $tree;

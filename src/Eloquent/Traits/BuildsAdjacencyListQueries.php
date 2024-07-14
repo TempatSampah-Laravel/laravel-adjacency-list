@@ -3,12 +3,12 @@
 namespace Staudenmeir\LaravelAdjacencyList\Eloquent\Traits;
 
 use Illuminate\Database\PostgresConnection;
-use Illuminate\Support\Str;
-use PDO;
 use RuntimeException;
+use Staudenmeir\LaravelAdjacencyList\Query\Grammars\FirebirdGrammar;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\MariaDbGrammar;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\MySqlGrammar;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\PostgresGrammar;
+use Staudenmeir\LaravelAdjacencyList\Query\Grammars\SingleStoreGrammar;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\SQLiteGrammar;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\SqlServerGrammar;
 
@@ -81,13 +81,15 @@ trait BuildsAdjacencyListQueries
 
         switch ($driver) {
             case 'mysql':
-                $version = $this->query->getConnection()->getReadPdo()->getAttribute(PDO::ATTR_SERVER_VERSION);
-
-                $grammar = Str::contains($version, 'MariaDB')
+                $grammar = $this->query->getConnection()->isMaria()
                     ? new MariaDbGrammar($this->model)
                     : new MySqlGrammar($this->model);
 
                 return $this->query->getConnection()->withTablePrefix($grammar);
+            case 'mariadb':
+                return $this->query->getConnection()->withTablePrefix(
+                    new MariaDbGrammar($this->model)
+                );
             case 'pgsql':
                 return $this->query->getConnection()->withTablePrefix(
                     new PostgresGrammar($this->model)
@@ -99,6 +101,14 @@ trait BuildsAdjacencyListQueries
             case 'sqlsrv':
                 return $this->query->getConnection()->withTablePrefix(
                     new SqlServerGrammar($this->model)
+                );
+            case 'singlestore':
+                return $this->query->getConnection()->withTablePrefix(
+                    new SingleStoreGrammar($this->model)
+                );
+            case 'firebird':
+                return $this->query->getConnection()->withTablePrefix(
+                    new FirebirdGrammar($this->model)
                 );
         }
 

@@ -10,6 +10,15 @@ use Staudenmeir\LaravelAdjacencyList\Tests\Tree\Models\User;
 
 class BelongsToManyOfDescendantsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if ($this->connection === 'singlestore') {
+            $this->markTestSkipped();
+        }
+    }
+
     public function testLazyLoading()
     {
         $roles = User::find(2)->roles;
@@ -26,9 +35,9 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testEagerLoading()
     {
-        $users = User::with(['roles' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }])->get();
+        $users = User::with([
+            'roles' => fn (BelongsToManyOfDescendants $query) => $query->orderBy('id'),
+        ])->orderBy('id')->get();
 
         $this->assertEquals([21, 31, 41, 51, 61, 71, 81], $users[0]->roles->pluck('id')->all());
         $this->assertEquals([51, 81], $users[1]->roles->pluck('id')->all());
@@ -39,9 +48,9 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testEagerLoadingAndSelf()
     {
-        $users = User::with(['rolesAndSelf' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }])->get();
+        $users = User::with([
+            'rolesAndSelf' => fn (BelongsToManyOfDescendants $query) => $query->orderBy('id'),
+        ])->orderBy('id')->get();
 
         $this->assertEquals([11, 21, 31, 41, 51, 61, 71, 81], $users[0]->rolesAndSelf->pluck('id')->all());
         $this->assertEquals([21, 51, 81], $users[1]->rolesAndSelf->pluck('id')->all());
@@ -52,9 +61,9 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testLazyEagerLoading()
     {
-        $users = User::all()->load(['roles' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }]);
+        $users = User::orderBy('id')->get()->load([
+            'roles' => fn (BelongsToManyOfDescendants $query) => $query->orderBy('id'),
+        ]);
 
         $this->assertEquals([21, 31, 41, 51, 61, 71, 81], $users[0]->roles->pluck('id')->all());
         $this->assertEquals([51, 81], $users[1]->roles->pluck('id')->all());
@@ -65,9 +74,9 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testLazyEagerLoadingAndSelf()
     {
-        $users = User::all()->load(['rolesAndSelf' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }]);
+        $users = User::orderBy('id')->get()->load([
+            'rolesAndSelf' => fn (BelongsToManyOfDescendants $query) => $query->orderBy('id'),
+        ]);
 
         $this->assertEquals([11, 21, 31, 41, 51, 61, 71, 81], $users[0]->rolesAndSelf->pluck('id')->all());
         $this->assertEquals([21, 51, 81], $users[1]->rolesAndSelf->pluck('id')->all());
@@ -78,7 +87,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQuery()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -89,7 +98,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryAndSelf()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -100,7 +109,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryForSelfRelation()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -111,7 +120,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryForSelfRelationAndSelf()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -122,7 +131,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testDelete()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -135,7 +144,7 @@ class BelongsToManyOfDescendantsTest extends TestCase
 
     public function testDeleteAndSelf()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'firebird'])) {
             $this->markTestSkipped();
         }
 

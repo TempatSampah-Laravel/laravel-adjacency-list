@@ -3,7 +3,7 @@
 namespace Staudenmeir\LaravelAdjacencyList\Eloquent\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
-use RuntimeException;
+use Illuminate\Support\Collection;
 use Staudenmeir\LaravelAdjacencyList\Query\Grammars\ExpressionGrammar;
 
 trait HasGraphRelationshipScopes
@@ -16,7 +16,7 @@ trait HasGraphRelationshipScopes
      * @param int|null $maxDepth
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeSubgraph(Builder $query, callable $constraint, int $maxDepth = null): Builder
+    public function scopeSubgraph(Builder $query, callable $constraint, ?int $maxDepth = null): Builder
     {
         return $query->withRelationshipExpression('desc', $constraint, 0, null, $maxDepth);
     }
@@ -77,8 +77,8 @@ trait HasGraphRelationshipScopes
         string $direction,
         callable $constraint,
         int $initialDepth,
-        string $from = null,
-        int $maxDepth = null,
+        ?string $from = null,
+        ?int $maxDepth = null,
         string $union = 'unionAll'
     ): Builder {
         $from = $from ?: $this->getTable();
@@ -142,6 +142,10 @@ trait HasGraphRelationshipScopes
 
         $constraint($query);
 
+        if (static::$initialQueryConstraint) {
+            (static::$initialQueryConstraint)($query);
+        }
+
         return $query;
     }
 
@@ -182,32 +186,13 @@ trait HasGraphRelationshipScopes
         $columns = [$this->getParentKeyName(), $this->getChildKeyName(), ...$this->getPivotColumns()];
 
         if ($initialDepth === 0) {
-            if (!$query->getConnection()->isDoctrineAvailable()) {
-                // @codeCoverageIgnoreStart
-                throw new RuntimeException(
-                    'This feature requires the doctrine/dbal package. Please run "composer require doctrine/dbal".'
-                );
-                // @codeCoverageIgnoreEnd
-            }
+            $columnDefinitions = (new Collection($query->getConnection()->getSchemaBuilder()->getColumns($pivotTable)))
+                ->keyBy('name');
 
-            $localKeyType = $query->getConnection()->getSchemaBuilder()->getColumnType(
-                (new $this())->getTable(),
-                $this->getLocalKeyName()
-            );
-            foreach ($columns as $i => $column) {
-                if ($i < 2) {
-                    $type = $localKeyType;
-                } else {
-                    $type = $query->getConnection()->getSchemaBuilder()->getColumnType($pivotTable, $column);
-                }
+            foreach ($columns as $column) {
+                $columnDefinition = $columnDefinitions[$column];
 
-                $doctrineColumn = $query->getConnection()->getDoctrineColumn($pivotTable, $column);
-
-                $null = $grammar->compilePivotColumnNullValue(
-                    $type,
-                    $doctrineColumn->getPrecision(),
-                    $doctrineColumn->getScale()
-                );
+                $null = $grammar->compilePivotColumnNullValue($columnDefinition['type_name'], $columnDefinition['type']);
 
                 $query->selectRaw("$null as " . $grammar->wrap("pivot_$column"));
             }
@@ -276,7 +261,7 @@ trait HasGraphRelationshipScopes
         ExpressionGrammar $grammar,
         string $direction,
         string $from,
-        int $maxDepth = null
+        ?int $maxDepth = null
     ): Builder {
         $name = $this->getExpressionName();
 
@@ -373,30 +358,32 @@ trait HasGraphRelationshipScopes
      */
     protected function addRecursiveQueryCycleDetection(Builder $query, ExpressionGrammar $grammar): void
     {
-        if ($this->enableCycleDetection()) {
-            $sql = $grammar->compileCycleDetection(
-                $this->getQualifiedLocalKeyName(),
-                $this->getPathName()
+        if (!$this->enableCycleDetection()) {
+            return;
+        }
+
+        $sql = $grammar->compileCycleDetection(
+            $this->getQualifiedLocalKeyName(),
+            $this->getPathName()
+        );
+
+        $bindings = $grammar->getCycleDetectionBindings(
+            $this->getPathSeparator()
+        );
+
+        if ($this->includeCycleStart()) {
+            $cycleDetectionColumn = $this->getCycleDetectionColumnName();
+
+            $query->selectRaw(
+                $grammar->compileCycleDetectionRecursiveSelect($sql, $cycleDetectionColumn),
+                $bindings
             );
 
-            $bindings = $grammar->getCycleDetectionBindings(
-                $this->getPathSeparator()
+            $query->whereRaw(
+                $grammar->compileCycleDetectionStopConstraint($cycleDetectionColumn)
             );
-
-            if ($this->includeCycleStart()) {
-                $cycleDetectionColumn = $this->getCycleDetectionColumnName();
-
-                $query->selectRaw(
-                    $grammar->compileCycleDetectionRecursiveSelect($sql, $cycleDetectionColumn),
-                    $bindings
-                );
-
-                $query->whereRaw(
-                    $grammar->compileCycleDetectionStopConstraint($cycleDetectionColumn)
-                );
-            } else {
-                $query->whereRaw("not($sql)", $bindings);
-            }
+        } else {
+            $query->whereRaw("not($sql)", $bindings);
         }
     }
 

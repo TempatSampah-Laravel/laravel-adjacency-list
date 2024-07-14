@@ -10,6 +10,9 @@ use Staudenmeir\EloquentHasManyDeep\HasOneDeep;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
 use Staudenmeir\EloquentHasManyDeep\HasTableAlias;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\BelongsToManyOfDescendants;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\HasManyOfDescendants;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\MorphToManyOfDescendants;
 
 class User extends Model
 {
@@ -20,7 +23,13 @@ class User extends Model
     use HasTableAlias;
     use SoftDeletes;
 
-    public function getCustomPaths()
+    public $incrementing = false;
+
+    protected $casts = [
+        'id' => 'int',
+    ];
+
+    public function getCustomPaths(): array
     {
         return array_merge(
             $this->baseGetCustomPaths(),
@@ -32,7 +41,9 @@ class User extends Model
                 ],
                 [
                     'name' => 'reverse_slug_path',
-                    'column' => new Expression('users.slug'),
+                    'column' => new Expression(
+                        $this->newQuery()->getGrammar()->wrap('users.slug')
+                    ),
                     'separator' => '/',
                     'reverse' => true,
                 ],
@@ -96,42 +107,42 @@ class User extends Model
         );
     }
 
-    public function posts()
+    public function posts(): HasManyOfDescendants
     {
         return $this->hasManyOfDescendants(Post::class);
     }
 
-    public function postsAndSelf()
+    public function postsAndSelf(): HasManyOfDescendants
     {
         return $this->hasManyOfDescendantsAndSelf(Post::class);
     }
 
-    public function roles()
+    public function roles(): BelongsToManyOfDescendants
     {
         return $this->belongsToManyOfDescendants(Role::class);
     }
 
-    public function rolesAndSelf()
+    public function rolesAndSelf(): BelongsToManyOfDescendants
     {
         return $this->belongsToManyOfDescendantsAndSelf(Role::class);
     }
 
-    public function tags()
+    public function tags(): MorphToManyOfDescendants
     {
         return $this->morphToManyOfDescendants(Tag::class, 'taggable');
     }
 
-    public function tagsAndSelf()
+    public function tagsAndSelf(): MorphToManyOfDescendants
     {
         return $this->morphToManyOfDescendantsAndSelf(Tag::class, 'taggable');
     }
 
-    public function videos()
+    public function videos(): MorphToManyOfDescendants
     {
         return $this->morphedByManyOfDescendants(Video::class, 'authorable');
     }
 
-    public function videosAndSelf()
+    public function videosAndSelf(): MorphToManyOfDescendants
     {
         return $this->morphedByManyOfDescendantsAndSelf(Video::class, 'authorable');
     }

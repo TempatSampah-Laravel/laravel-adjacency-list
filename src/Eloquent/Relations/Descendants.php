@@ -11,6 +11,10 @@ use Staudenmeir\EloquentHasManyDeepContracts\Interfaces\ConcatenableRelation;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\Traits\Concatenation\IsConcatenableDescendantsRelation;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\Traits\IsRecursiveRelation;
 
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends HasMany<TRelatedModel>
+ */
 class Descendants extends HasMany implements ConcatenableRelation
 {
     use IsConcatenableDescendantsRelation;
@@ -53,7 +57,7 @@ class Descendants extends HasMany implements ConcatenableRelation
 
         $keys = $this->getKeys($models, $this->localKey);
 
-        $constraint = function (Builder $query) use ($models, $whereIn, $column, $keys) {
+        $constraint = function (Builder $query) use ($whereIn, $column, $keys) {
             $query->$whereIn($column, $keys);
         };
 
@@ -184,7 +188,7 @@ class Descendants extends HasMany implements ConcatenableRelation
      * @param string|null $from
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function addExpression(callable $constraint, Builder $query = null, $from = null)
+    protected function addExpression(callable $constraint, ?Builder $query = null, $from = null)
     {
         $query = $query ?: $this->query;
 

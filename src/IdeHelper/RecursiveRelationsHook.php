@@ -4,10 +4,10 @@ namespace Staudenmeir\LaravelAdjacencyList\IdeHelper;
 
 use Barryvdh\LaravelIdeHelper\Console\ModelsCommand;
 use Barryvdh\LaravelIdeHelper\Contracts\ModelHookInterface;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Staudenmeir\LaravelAdjacencyList\Eloquent\Collection;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Collection as TreeCollection;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Graph\Collection as GraphCollection;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasGraphRelationships;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 
@@ -19,7 +19,7 @@ class RecursiveRelationsHook implements ModelHookInterface
     /**
      * @var array<array<RT>>
      */
-    protected static array $treeRelationMap = [
+    protected static array $treeRelationships = [
         [
             'name' => 'ancestors',
             'manyRelation' => true,
@@ -85,7 +85,7 @@ class RecursiveRelationsHook implements ModelHookInterface
     /**
      * @var array<array<RT>>
      */
-    protected static array $graphRelationMap = [
+    protected static array $graphRelationships = [
         [
             'name' => 'ancestors',
             'manyRelation' => true,
@@ -130,73 +130,47 @@ class RecursiveRelationsHook implements ModelHookInterface
 
     public function run(ModelsCommand $command, Model $model): void
     {
-        $traits = collect(
-            class_uses_recursive($model)
+        $traits = class_uses_recursive($model);
+
+        if (in_array(HasRecursiveRelationships::class, $traits)) {
+            foreach (static::$treeRelationships as $relationship) {
+                $type = $relationship['manyRelation']
+                    ? '\\' . TreeCollection::class . '|\\' . $model::class . '[]'
+                    : '\\' . $model::class;
+
+                $this->addRelationship($command, $relationship, $type);
+            }
+        }
+
+        if (in_array(HasGraphRelationships::class, $traits)) {
+            foreach (static::$graphRelationships as $relationship) {
+                $type = '\\' . GraphCollection::class . '|\\' . $model::class . '[]';
+
+                $this->addRelationship($command, $relationship, $type);
+            }
+        }
+    }
+
+    protected function addRelationship(ModelsCommand $command, array $relationship, string $type): void
+    {
+        $command->setProperty(
+            $relationship['name'],
+            $type,
+            true,
+            false,
+            $relationship['comment'],
+            !$relationship['manyRelation']
         );
 
-        if ($traits->contains(HasRecursiveRelationships::class)) {
-            $this->setTreeRelationProperties($command, $model);
-        }
-
-        if ($traits->contains(HasGraphRelationships::class)) {
-            $this->setGraphRelationProperties($command, $model);
-        }
-    }
-
-
-    protected function setTreeRelationProperties(ModelsCommand $command, Model $model): void
-    {
-        foreach (static::$treeRelationMap as $relationDefinition) {
-            $type = $relationDefinition['manyRelation']
-                ? '\\' . Collection::class . '|' . class_basename($model) . '[]'
-                : class_basename($model);
-
+        if ($relationship['manyRelation']) {
             $command->setProperty(
-                $relationDefinition['name'],
-                $type,
+                Str::snake($relationship['name']) . '_count',
+                'int',
                 true,
                 false,
-                $relationDefinition['comment'],
-                !$relationDefinition['manyRelation']
+                null,
+                true
             );
-
-            if ($relationDefinition['manyRelation']) {
-                $command->setProperty(
-                    Str::snake($relationDefinition['name']) . '_count',
-                    'int',
-                    true,
-                    false,
-                    null,
-                    true
-                );
-            }
-        }
-    }
-
-    protected function setGraphRelationProperties(ModelsCommand $command, Model $model): void
-    {
-        foreach (static::$graphRelationMap as $relationDefinition) {
-            $type = '\\' . EloquentCollection::class . '|' . class_basename($model) . '[]';
-
-            $command->setProperty(
-                $relationDefinition['name'],
-                $type,
-                true,
-                false,
-                $relationDefinition['comment'],
-                !$relationDefinition['manyRelation']
-            );
-
-            if ($relationDefinition['manyRelation']) {
-                $command->setProperty(
-                    Str::snake($relationDefinition['name']) . '_count',
-                    'int',
-                    true,
-                    false,
-                    null,
-                    true
-                );
-            }
         }
     }
 }

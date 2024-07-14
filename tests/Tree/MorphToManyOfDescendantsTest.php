@@ -3,13 +3,22 @@
 namespace Staudenmeir\LaravelAdjacencyList\Tests\Tree;
 
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\BelongsToManyOfDescendants;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\Relations\MorphToManyOfDescendants;
 use Staudenmeir\LaravelAdjacencyList\Tests\Scopes\DepthScope;
 use Staudenmeir\LaravelAdjacencyList\Tests\Tree\Models\Tag;
 use Staudenmeir\LaravelAdjacencyList\Tests\Tree\Models\User;
 
 class MorphToManyOfDescendantsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if ($this->connection === 'singlestore') {
+            $this->markTestSkipped();
+        }
+    }
+
     public function testLazyLoading()
     {
         $tags = User::find(2)->tags;
@@ -26,9 +35,9 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testEagerLoading()
     {
-        $users = User::with(['tags' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }])->get();
+        $users = User::with([
+            'tags' => fn (MorphToManyOfDescendants $query) => $query->orderBy('id'),
+        ])->orderBy('id')->get();
 
         $this->assertEquals([22, 32, 42, 52, 62, 72, 82], $users[0]->tags->pluck('id')->all());
         $this->assertEquals([52, 82], $users[1]->tags->pluck('id')->all());
@@ -39,9 +48,9 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testEagerLoadingAndSelf()
     {
-        $users = User::with(['tagsAndSelf' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }])->get();
+        $users = User::with([
+            'tagsAndSelf' => fn (MorphToManyOfDescendants $query) => $query->orderBy('id'),
+        ])->orderBy('id')->get();
 
         $this->assertEquals([12, 22, 32, 42, 52, 62, 72, 82], $users[0]->tagsAndSelf->pluck('id')->all());
         $this->assertEquals([22, 52, 82], $users[1]->tagsAndSelf->pluck('id')->all());
@@ -52,9 +61,9 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testLazyEagerLoading()
     {
-        $users = User::all()->load(['tags' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }]);
+        $users = User::orderBy('id')->get()->load([
+            'tags' => fn (MorphToManyOfDescendants $query) => $query->orderBy('id'),
+        ]);
 
         $this->assertEquals([22, 32, 42, 52, 62, 72, 82], $users[0]->tags->pluck('id')->all());
         $this->assertEquals([52, 82], $users[1]->tags->pluck('id')->all());
@@ -65,9 +74,9 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testLazyEagerLoadingAndSelf()
     {
-        $users = User::all()->load(['tagsAndSelf' => function (BelongsToManyOfDescendants $query) {
-            $query->orderBy('id');
-        }]);
+        $users = User::orderBy('id')->get()->load([
+            'tagsAndSelf' => fn (MorphToManyOfDescendants $query) => $query->orderBy('id'),
+        ]);
 
         $this->assertEquals([12, 22, 32, 42, 52, 62, 72, 82], $users[0]->tagsAndSelf->pluck('id')->all());
         $this->assertEquals([22, 52, 82], $users[1]->tagsAndSelf->pluck('id')->all());
@@ -78,7 +87,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQuery()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -89,7 +98,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryAndSelf()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -100,7 +109,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryForSelfRelation()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -111,7 +120,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testExistenceQueryForSelfRelationAndSelf()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -122,7 +131,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testDelete()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -135,7 +144,7 @@ class MorphToManyOfDescendantsTest extends TestCase
 
     public function testDeleteAndSelf()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'firebird'])) {
             $this->markTestSkipped();
         }
 

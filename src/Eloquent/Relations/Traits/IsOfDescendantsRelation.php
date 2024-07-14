@@ -230,7 +230,7 @@ trait IsOfDescendantsRelation
      * @param bool $selectPath
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function addExpression(callable $constraint, Builder $query = null, $alias = null, $selectPath = false)
+    protected function addExpression(callable $constraint, ?Builder $query = null, $alias = null, $selectPath = false)
     {
         $name = $this->parent->getExpressionName();
 
@@ -245,7 +245,7 @@ trait IsOfDescendantsRelation
 
         $query->withRecursiveExpression($name, $expression);
 
-        $query->withGlobalScope(get_class(), function (Builder $query) use ($name) {
+        $query->withGlobalScope(get_class($this), function (Builder $query) use ($name) {
             $query->whereIn(
                 $this->getExpressionForeignKeyName(),
                 (new $this->parent())->setTable($name)
@@ -276,8 +276,11 @@ trait IsOfDescendantsRelation
 
         $depth = $grammar->wrap($model->getDepthName());
 
-        $query = $model->newModelQuery()
-            ->select('*')
+        $query = $model->newModelQuery();
+
+        $table = $alias ?: $query->getQuery()->from;
+
+        $query->select("$table.*")
             ->selectRaw("$initialDepth as $depth");
 
         if ($alias) {
